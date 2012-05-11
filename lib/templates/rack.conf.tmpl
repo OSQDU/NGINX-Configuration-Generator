@@ -1,0 +1,11 @@
+server {
+    server_name #{SERVER_NAMES}; # Server names that match "Host: xxx.com" in HTTP request
+    listen 80; # Port that nginx listens on
+    root #{ROOT_PATH}/public; # Points to Rack application static pages root
+    access_log /var/log/nginx/app_#{SERVER_NAME_MASTER}.log app;
+    passenger_enabled on;
+    passenger_pre_start http://#{SERVER_NAME_MASTER}/;
+    passenger_min_instances 1;
+    passenger_ignore_client_abort off;
+}
+
