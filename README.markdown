@@ -9,11 +9,11 @@ The config generator consists of three versions, written in Perl, Ruby and Pytho
 You'll need a perl intepreter, know how to use CPAN, having make and gcc (probably)
 
 ## Command Line Options
-static, php, python and rack application: --&lt;server_type&gt; &lt;server_name&gt; &lt;app_root_dir&gt; # create a server block with specified server_type, server_name and application root dir
+static, php, python and rack application: --&lt;server_type&gt; &lt;server_name1&gt;,&lt;server_name2&gt;,&lt;server_name3&gt;:&lt;app_root_dir&gt; # create a server block with specified server_type, server_name and application root dir
 
-reverse-proxy application: --proxy &lt;server_name&gt; &lt;backend1&gt; &lt;backend2&gt; &lt;backend3&gt;...
+reverse-proxy application: --proxy &lt;server_name1&gt;,&lt;server_name2&gt;:&lt;backend1&gt;,&lt;backend2&gt;,&lt;backend3&gt;...
 
-stub-status: --status &lt;server_name&gt; &lt;port%gt;
+stub-status: --status &lt;server_name&gt; &lt;port&gt ;
 
 Available server types:
 
