@@ -59,7 +59,7 @@ sub generate_server_block {
     }
 }
 
-sub hosted_app_info {
+sub hosted_app_info { # Get SERVER_NAMES, SERVER_ROOT and APPLICATION_TYPE of HOSTED application
     my $apps = shift; # Get a reference of applications list
     my $app_type = shift;
     my @apps = @$apps; # Dereference application list
@@ -75,7 +75,7 @@ sub hosted_app_info {
     return \@servers;
 }
 
-sub proxy_info {
+sub proxy_info { # Get PROXY backend addresses, server_names
     my $proxies = shift;
     my $proxy_type = shift;
     my @proxies = @$proxies;
