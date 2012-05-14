@@ -3,7 +3,7 @@ server {
     listen 80; # Port that nginx listens on
     access_log /var/log/nginx/proxy_#{SERVER_NAME_MASTER}.log proxy;
     # proxy_bind 192.168.1.1; # Upstream out-going interface IP address;
-    proxy_pass http://proxy-backend1;
+    proxy_pass http://#{UPSTREAM_NAME};
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
 }

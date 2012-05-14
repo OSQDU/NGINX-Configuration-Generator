@@ -29,9 +29,10 @@ my $proxy = proxy_info(\@proxy_servers, "reverseproxy");
 my $base_dir = dirname(File::Spec->rel2abs(__FILE__));
 my $template_dir = "$base_dir/lib/templates";
 
-my %templates = (rack => "$template_dir/rack.conf.tmpl", proxy => "$template_dir/proxy.conf.tmpl");
+my %templates = (rack => "$template_dir/rack.conf.tmpl", reverseproxy => "$template_dir/proxy.conf.tmpl");
 
 generate_server_block($rack);
+generate_server_block($proxy);
 
 sub generate_server_block {
     my @servers = @{$_[0]}; # dereference $_[0], the first arugment
@@ -45,10 +46,14 @@ sub generate_server_block {
 	switch ($$server{'type'}) {
 	    case ["rack","python", "php", "static"] {
 		$parameters{ROOT_PATH} = $$server{'server_root'};
-		print process_template($templates{$$server{type}}, \%parameters)
+		print process_hosted_template($templates{$$server{type}}, \%parameters);
 	    }
 	    case "reverseproxy" {
-		$parameters{BACKEND_URLS} = $$server{'backend'};
+		$parameters{'BACKEND_URLS'} = $$server{'backends'};
+		my @fqdn = split(/\./, $server_names[0]);
+		my $upstream_name = join("_", @fqdn[0,1])."-".generate_random_string(5);
+		$parameters{'UPSTREAM_NAME'} = $upstream_name;
+		print process_proxy_template($templates{$$server{type}}, \%parameters);
 	    }
 	}
     }
@@ -77,21 +82,38 @@ sub proxy_info {
     my @servers;
     foreach my $proxy (@proxies) {
 	my @fields = split /:/, $proxy, 2; # Only split to 2 parts;
-	my $server_name = join(" ", split(/,/, shift @fields));
+	my @server_names = split(/,/, shift @fields);
 	my @backends = split(/,/, shift @fields);
-	my %proxy_instance = ('server_name' => $server_name, 'backend' => \@backends, 'type' => $proxy_type);
+	my %proxy_instance = ('server_names' => \@server_names, 'backends' => \@backends, 'type' => $proxy_type);
 	push @servers, \%proxy_instance;
     }
     return \@servers;
 }
 
-sub process_template {
+sub process_hosted_template {
+    my $template_file = shift;
+    my $arguments = shift; # a ref of argument
+    my %arguments = %$arguments; # dereferenced hash
+    # my $variable_names = join("|", keys(%arguments));
+    my $output;
+    open(my $fh, "<", $template_file);
+    while (<$fh>) {
+	$_ =~ s/#\{(.*)\}/$arguments{$1}/e;
+	$output .= $_;
+    }
+    return $output;
+}
+
+sub process_proxy_template {
     my $template_file = shift;
     my $arguments = shift;
     my %arguments = %$arguments;
-    # my $variable_names = join("|", keys(%arguments));
-    my $output;
-    my $line;
+    my $output = "upstream $arguments{UPSTREAM_NAME} \{\n";
+    my @backends = @{$arguments{'BACKEND_URLS'}};
+    foreach my $backend (@backends) {
+	$output .= "    server $backend max_fails=5 fail_timeout=30s;\n";
+    }
+    $output .= "\}\n";
     open(my $fh, "<", $template_file);
     while (<$fh>) {
 	$_ =~ s/#\{(.*)\}/$arguments{$1}/e;
@@ -102,7 +124,7 @@ sub process_template {
 
 sub generate_random_string {
     my $length_of_randomstring=shift;
-    my @chars=('a'..'z','A'..'Z','0'..'9','_');
+    my @chars=('a'..'z','A'..'Z','0'..'9');
     my $random_string;
     foreach (1..$length_of_randomstring) 
     {
