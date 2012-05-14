@@ -4,6 +4,7 @@ use Data::Dumper;
 use Getopt::Long;
 use File::Spec;
 use File::Basename;
+use Switch;
 
 my @static_apps;
 my @php_apps;
@@ -28,11 +29,30 @@ my $proxy = proxy_info(\@proxy_servers, "reverseproxy");
 my $base_dir = dirname(File::Spec->rel2abs(__FILE__));
 my $template_dir = "$base_dir/lib/templates";
 
-my $rack_template = "$template_dir/rack.conf.tmpl";
-my $proxy_template = "$template_dir/proxy.conf.tmpl";
+my %templates = (rack => "$template_dir/rack.conf.tmpl", proxy => "$template_dir/proxy.conf.tmpl");
 
+generate_server_block($rack);
 
-print $$static[0]{'server_name'};
+sub generate_server_block {
+    my @servers = @{$_[0]}; # dereference $_[0], the first arugment
+    foreach my $server (@servers) {
+	my @server_names = @{$$server{'server_names'}}; # deref $server, a hash
+	my %parameters = (
+	    'SERVER_NAMES' => join(" ", @server_names),
+	    'SERVER_NAME_MASTER' => $server_names[0]
+	    );
+
+	switch ($$server{'type'}) {
+	    case ["rack","python", "php", "static"] {
+		$parameters{ROOT_PATH} = $$server{'server_root'};
+		print process_template($templates{$$server{type}}, \%parameters)
+	    }
+	    case "reverseproxy" {
+		$parameters{BACKEND_URLS} = $$server{'backend'};
+	    }
+	}
+    }
+}
 
 sub hosted_app_info {
     my $apps = shift; # Get a reference of applications list
@@ -41,9 +61,10 @@ sub hosted_app_info {
     my @servers; # Defined servers
     foreach my $app (@apps) {
 	my @fields = split /:/, $app;
-	my $server_name = join(" ", split(/,/, shift @fields));
+	#my $server_name = join(" ", split(/,/, shift @fields));
+	my @server_names = split(/,/, shift @fields);
 	my $server_root = shift @fields;
-	my %server_instance = ('server_name' => $server_name, 'server_root' => $server_root, 'type' => $app_type);
+	my %server_instance = ('server_names' => \@server_names, 'server_root' => $server_root, 'type' => $app_type);
 	push @servers, \%server_instance;
     }
     return \@servers;
@@ -65,9 +86,28 @@ sub proxy_info {
 }
 
 sub process_template {
-    my $template = shift;
+    my $template_file = shift;
     my $arguments = shift;
+    my %arguments = %$arguments;
+    # my $variable_names = join("|", keys(%arguments));
     my $output;
-
+    my $line;
+    open(my $fh, "<", $template_file);
+    while (<$fh>) {
+	$_ =~ s/#\{(.*)\}/$arguments{$1}/e;
+	$output .= $_;
+    }
     return $output;
 }
+
+sub generate_random_string {
+    my $length_of_randomstring=shift;
+    my @chars=('a'..'z','A'..'Z','0'..'9','_');
+    my $random_string;
+    foreach (1..$length_of_randomstring) 
+    {
+	$random_string.=$chars[rand @chars];
+    }
+    return $random_string;
+}
+
